@@ -1,0 +1,2378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guided Project · MNIST Streamlit App in Docker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #FFFFFF;
+    --bg-light:  #F2F6FC;
+    --bg-lighter:#E5ECF7;
+    --ink:       #0A1830;
+    --ink-soft:  #1F2D4A;
+    --muted:     #5B6079;
+    --muted-dk:  #8C90A6;
+    --line:      #DBE2F0;
+
+    /* ===== BRAC UNIVERSITY PALETTE ===== */
+    --bracu-blue:    #1F5FB5;
+    --bracu-navy:    #003594;
+    --bracu-sky:     #4FA8E8;
+    --bracu-black:   #1A1A1A;
+    --bracu-graphite:#5C5F70;
+    --bracu-green:   #2EA77B;
+    --bracu-amber:   #F0A574;
+
+    --accent:    var(--bracu-blue);
+    --accent-2:  var(--bracu-navy);
+
+    --surface-glass: rgba(255,255,255,0.92);
+    --surface-glass-soft: rgba(255,255,255,0.85);
+    --shadow-soft: 0 2px 10px rgba(15, 21, 48, 0.06);
+    --shadow-medium: 0 6px 18px rgba(15, 21, 48, 0.10);
+
+    --code-bg: #0F1A33;
+    --code-fg: #E5EDFA;
+
+    /* layout knobs (JS overrides --sidebar-w + --content-scale at runtime) */
+    --header-h: 56px;
+    --sidebar-w: 300px;
+    --sidebar-w-collapsed: 56px;
+    --content-scale: 1;
+  }
+
+  /* ===== DARK THEME OVERRIDES ===== */
+  [data-theme="dark"] {
+    --bg:        #0A1224;
+    --bg-light:  #131D33;
+    --bg-lighter:#1B2945;
+    --ink:       #E8EEFA;
+    --ink-soft:  #C8D3E8;
+    --muted:     #9AA3BD;
+    --muted-dk:  #6B7290;
+    --line:      #283555;
+
+    --bracu-blue:    #4FA8E8;
+    --bracu-navy:    #80B6F0;
+    --bracu-sky:     #6FBDF2;
+    --bracu-graphite:#9AA3BD;
+    --bracu-green:   #4FD49E;
+
+    --surface-glass: rgba(20,28,46,0.92);
+    --surface-glass-soft: rgba(20,28,46,0.85);
+    --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.45);
+    --shadow-medium: 0 6px 18px rgba(0, 0, 0, 0.55);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  code, pre, .mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* ============================================================
+     HEADER (compact, dynamic title)
+     ============================================================ */
+  .gp-header {
+    flex: 0 0 auto;
+    height: var(--header-h);
+    padding: 0 24px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    z-index: 90;
+    position: relative;
+  }
+  .gp-header .h-left {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .gp-header .h-tag {
+    font-size: 0.68rem;
+    color: var(--bracu-blue);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 800;
+    background: rgba(31,95,181,0.10);
+    padding: 4px 10px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .gp-header h1 {
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .gp-header h1 .hl {
+    background: linear-gradient(90deg, var(--bracu-blue), var(--bracu-navy));
+    -webkit-background-clip: text;
+            background-clip: text;
+    color: transparent;
+  }
+  .gp-header h1.title-fade {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  .gp-header .h-progress {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.74rem;
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+  }
+  .gp-header .h-progress .hp-bar {
+    width: 120px;
+    height: 6px;
+    background: var(--bg-lighter);
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .gp-header .h-progress .hp-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--bracu-blue), var(--bracu-navy));
+    transition: width 0.4s cubic-bezier(.4,0,.2,1);
+  }
+  .gp-header .h-meta {
+    font-size: 11.5px;
+    color: var(--muted-dk);
+    font-style: italic;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  /* ============================================================
+     LAYOUT WRAPPER
+     ============================================================ */
+  .layout {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    min-height: 0;
+    position: relative;
+  }
+  .layout.collapsed { grid-template-columns: var(--sidebar-w-collapsed) 1fr; }
+
+  /* ============================================================
+     SIDEBAR (resizable + minimizable)
+     ============================================================ */
+  .sidebar {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    border-right: 1px solid var(--line);
+    background: var(--bg-light);
+    display: flex;
+    flex-direction: column;
+  }
+  .sb-head {
+    flex: 0 0 auto;
+    padding: 14px 14px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sb-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--bracu-navy);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    flex: 1 1 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sb-collapse {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink-soft);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.2s ease, color 0.15s ease;
+    flex-shrink: 0;
+  }
+  .sb-collapse:hover { background: var(--bg-lighter); color: var(--bracu-blue); }
+  .sb-collapse svg { width: 14px; height: 14px; transition: transform 0.25s ease; }
+  .layout.collapsed .sb-collapse svg { transform: rotate(180deg); }
+
+  .sb-progress {
+    flex: 0 0 auto;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sb-progress .sbp-bar {
+    flex: 1 1 auto;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg-lighter);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .sb-progress .sbp-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--bracu-blue), var(--bracu-green));
+    transition: width 0.4s cubic-bezier(.4,0,.2,1);
+  }
+  .sb-progress .sbp-text {
+    flex-shrink: 0;
+    color: var(--bracu-navy);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 12px 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .step-list::-webkit-scrollbar { width: 8px; }
+  .step-list::-webkit-scrollbar-track { background: transparent; }
+  .step-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+  .step-btn {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    font: inherit;
+    text-align: left;
+    width: 100%;
+  }
+  .step-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-soft);
+    border-color: var(--bracu-blue);
+  }
+  .step-btn .sb-check {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid var(--muted-dk);
+    background: var(--bg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.25s ease;
+  }
+  .step-btn .sb-check svg {
+    width: 12px;
+    height: 12px;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.2s ease, transform 0.2s cubic-bezier(.5,1.5,.6,1);
+  }
+  .step-btn.done .sb-check {
+    background: var(--bracu-green);
+    border-color: var(--bracu-green);
+  }
+  .step-btn.done .sb-check svg {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .step-btn.done .sb-check svg path { stroke: #fff; }
+  .step-btn .sb-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .step-btn .sb-num {
+    font-size: 0.66rem;
+    font-weight: 800;
+    color: var(--bracu-blue);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .step-btn .sb-label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .step-btn.active {
+    background: linear-gradient(180deg, rgba(31,95,181,0.10), rgba(0,53,148,0.04));
+    border-color: var(--bracu-blue);
+    box-shadow: var(--shadow-medium);
+  }
+  .step-btn.active .sb-num { color: var(--bracu-navy); }
+
+  /* Collapsed sidebar — show only the check circle */
+  .layout.collapsed .sidebar .sb-title,
+  .layout.collapsed .sidebar .sb-progress .sbp-bar,
+  .layout.collapsed .sidebar .sb-progress .sbp-text,
+  .layout.collapsed .sidebar .step-btn .sb-content,
+  .layout.collapsed .sidebar .sb-resize {
+    display: none;
+  }
+  .layout.collapsed .sidebar .sb-head { padding: 14px 6px 10px; justify-content: center; }
+  .layout.collapsed .sidebar .sb-progress { padding: 10px 8px; justify-content: center; }
+  .layout.collapsed .sidebar .step-list { padding: 12px 6px 24px; align-items: center; }
+  .layout.collapsed .sidebar .step-btn {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 8px;
+    width: 40px;
+  }
+
+  /* Resize handle on the right edge of the sidebar */
+  .sb-resize {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    cursor: ew-resize;
+    z-index: 80;
+    background: transparent;
+    transition: background 0.15s ease;
+  }
+  .sb-resize::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 36px;
+    border-radius: 2px;
+    background: var(--line);
+    opacity: 0;
+    transition: opacity 0.18s ease, background 0.18s ease;
+  }
+  .sb-resize:hover::after,
+  .sb-resize.dragging::after {
+    opacity: 1;
+    background: var(--bracu-blue);
+  }
+  body.resizing { user-select: none; cursor: ew-resize; }
+  body.resizing * { cursor: ew-resize !important; }
+
+  /* ============================================================
+     MAIN CONTENT (page-based)
+     ============================================================ */
+  .content {
+    position: relative;
+    height: 100%;
+    overflow-y: auto;
+    padding: 40px 60px 140px;
+    font-size: calc(1rem * var(--content-scale));
+  }
+  .content::-webkit-scrollbar { width: 10px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+
+  .content-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ===== PAGE SYSTEM ===== */
+  .page {
+    display: none;
+    animation: page-in 0.4s cubic-bezier(.4,0,.2,1);
+  }
+  .page.active { display: block; }
+  @keyframes page-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Pill / heading / typography */
+  .step-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,53,148,0.10);
+    color: var(--bracu-navy);
+    border-left: 3px solid var(--bracu-navy);
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 0.78em;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+  .step-pill.blue   { background: rgba(31,95,181,0.10);  color: var(--bracu-blue);  border-color: var(--bracu-blue); }
+  .step-pill.sky    { background: rgba(79,168,232,0.15); color: var(--bracu-sky);   border-color: var(--bracu-sky); }
+  .step-pill.green  { background: rgba(46,167,123,0.12); color: var(--bracu-green); border-color: var(--bracu-green); }
+  .step-pill.amber  { background: rgba(240,165,116,0.12); color: var(--bracu-amber); border-color: var(--bracu-amber); }
+
+  .page h2 {
+    font-size: 2.05em;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .page h2 .accent-line {
+    display: block;
+    width: 92px;
+    height: 5px;
+    margin-top: 12px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--bracu-blue), var(--bracu-navy));
+  }
+  .page h3 {
+    font-size: 1.15em;
+    font-weight: 700;
+    margin-top: 22px;
+    margin-bottom: 8px;
+    color: var(--ink);
+  }
+  .page h3 .dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--bracu-blue);
+    margin-right: 9px;
+    vertical-align: middle;
+  }
+  .page p.info-text {
+    font-size: 1.04em;
+    color: var(--muted);
+    line-height: 1.65;
+    margin: 10px 0 8px;
+  }
+  .page p.info-text strong { color: var(--ink); }
+  .page p.info-text code,
+  .page li code {
+    background: var(--bg-light);
+    border: 1px solid var(--line);
+    color: var(--bracu-blue);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    font-weight: 600;
+  }
+  .page ol,
+  .page ul {
+    margin: 8px 0 8px 22px;
+    color: var(--muted);
+    line-height: 1.65;
+    font-size: 1.02em;
+  }
+  .page ul.bare {
+    list-style: none;
+    margin-left: 0;
+  }
+  .page ul.bare li {
+    padding-left: 22px;
+    position: relative;
+    margin-bottom: 6px;
+  }
+  .page ul.bare li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--bracu-blue);
+  }
+
+  /* Callout / cards / codeblock — preserved from previous version */
+  .callout {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: linear-gradient(90deg, rgba(31,95,181,0.07), rgba(0,53,148,0.04));
+    border-left: 4px solid var(--bracu-blue);
+    border: 1px solid var(--line);
+    border-left-width: 4px;
+    border-radius: 6px;
+    color: var(--ink-soft);
+    font-size: 0.98em;
+    line-height: 1.55;
+  }
+  .callout.warn {
+    background: linear-gradient(90deg, rgba(240,167,116,0.10), rgba(240,167,116,0.04));
+    border-left-color: #C97A2D;
+  }
+  .callout.ok {
+    background: linear-gradient(90deg, rgba(46,167,123,0.10), rgba(46,167,123,0.04));
+    border-left-color: var(--bracu-green);
+  }
+  .callout strong { color: var(--ink); }
+  .callout code {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--bracu-blue);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 600;
+  }
+
+  .codeblock-wrap {
+    margin-top: 14px;
+    position: relative;
+  }
+  .codeblock-wrap .cb-label {
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--bg);
+    color: var(--bracu-navy);
+    border: 1px solid var(--line);
+    padding: 2px 10px;
+    font-size: 0.7em;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border-radius: 4px;
+    z-index: 2;
+  }
+  .codeblock {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 24px 26px 22px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.92em;
+    line-height: 1.65;
+    border: 1px solid var(--line);
+    box-shadow: 0 6px 18px rgba(15, 21, 48, 0.10);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .codeblock .cm-comment  { color: #8C90A6; font-style: italic; }
+  .codeblock .cm-cmd      { color: #B5CEF7; }
+  .codeblock .cm-key      { color: #4FA8E8; font-weight: 700; }
+  .codeblock .cm-val      { color: #E5EDFA; }
+  .codeblock .cm-str      { color: #F0A574; }
+  .codeblock .cm-num      { color: #79D49B; }
+  .codeblock .cm-ok       { color: #79D49B; }
+  .codeblock .cm-warn     { color: #F0C674; }
+  .codeblock .cm-note     { color: #4FA8E8; font-weight: 700; }
+  .codeblock .cm-flag     { color: #F0A574; }
+
+  /* Mini cards / grid */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 18px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 18px;
+  }
+  .mini-card {
+    background: var(--bg-light);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--bracu-blue);
+    padding: 16px 18px;
+    border-radius: 8px;
+  }
+  .mini-card:nth-child(2) { border-top-color: var(--bracu-navy); }
+  .mini-card:nth-child(3) { border-top-color: var(--bracu-sky); }
+  .mini-card:nth-child(4) { border-top-color: var(--bracu-green); }
+  .mini-card .mc-label {
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 800;
+    color: var(--bracu-blue);
+    margin-bottom: 6px;
+  }
+  .mini-card:nth-child(2) .mc-label { color: var(--bracu-navy); }
+  .mini-card:nth-child(3) .mc-label { color: var(--bracu-sky); }
+  .mini-card:nth-child(4) .mc-label { color: var(--bracu-green); }
+  .mini-card .mc-text {
+    font-size: 0.93em;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .mini-card .mc-text strong { color: var(--ink); }
+  .mini-card .mc-text code {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--bracu-blue);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+
+  /* ============================================================
+     PAGE FOOTER (Mark Done + Prev + Next)
+     ============================================================ */
+  .page-footer {
+    margin-top: 40px;
+    padding-top: 22px;
+    border-top: 1px dashed var(--line);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .page-footer .mark-done {
+    flex: 1 1 auto;
+    min-width: 220px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px 22px;
+    border-radius: 8px;
+    border: 1.5px solid var(--bracu-green);
+    background: var(--bg);
+    color: var(--bracu-green);
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+  }
+  .page-footer .mark-done:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(46,167,123,0.22);
+    background: rgba(46,167,123,0.06);
+  }
+  .page-footer .mark-done.done {
+    background: var(--bracu-green);
+    color: #fff;
+  }
+  .page-footer .mark-done .md-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .page-footer .mark-done.done .md-icon::after {
+    content: '\2713';
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 900;
+  }
+  .page-footer .pf-nav {
+    display: inline-flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .page-footer .pf-btn {
+    padding: 12px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+  .page-footer .pf-btn:hover {
+    border-color: var(--bracu-blue);
+    background: var(--bg-light);
+    transform: translateY(-1px);
+  }
+  .page-footer .pf-btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .page-footer .pf-btn.primary {
+    background: linear-gradient(180deg, var(--bracu-blue), var(--bracu-navy));
+    color: #fff;
+    border-color: var(--bracu-navy);
+  }
+  .page-footer .pf-btn.primary:hover {
+    box-shadow: 0 6px 18px rgba(0,53,148,0.30);
+  }
+
+  /* ============================================================
+     INTRO PAGE — animated SVG hero
+     ============================================================ */
+  .intro-hero {
+    margin-top: 14px;
+    padding: 28px 24px;
+    background: var(--bg-light);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .intro-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 15% 25%, rgba(31,95,181,0.10), transparent 50%),
+      radial-gradient(circle at 85% 75%, rgba(0,53,148,0.08), transparent 50%);
+    pointer-events: none;
+  }
+  .intro-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 360px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* SVG element styling + entrance animation */
+  .intro-svg .conn {
+    stroke: url(#grad-conn);
+    stroke-width: 3;
+    fill: none;
+    stroke-linecap: round;
+    stroke-dasharray: 240;
+    stroke-dashoffset: 240;
+    animation: draw-conn 0.6s cubic-bezier(.4,0,.2,1) forwards;
+  }
+  .intro-svg .c1 { animation-delay: 0.50s; }
+  .intro-svg .c2 { animation-delay: 1.20s; }
+  .intro-svg .c3 { animation-delay: 1.90s; }
+  .intro-svg .c4 { animation-delay: 2.60s; }
+  .intro-svg .c5 { animation-delay: 3.30s; }
+  @keyframes draw-conn {
+    to { stroke-dashoffset: 0; }
+  }
+
+  .intro-svg .node {
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0.6);
+    animation: pop-node 0.55s cubic-bezier(.5,1.6,.6,1) forwards;
+  }
+  .intro-svg .n1 { animation-delay: 0.05s; }
+  .intro-svg .n2 { animation-delay: 0.85s; }
+  .intro-svg .n3 { animation-delay: 1.55s; }
+  .intro-svg .n4 { animation-delay: 2.25s; }
+  .intro-svg .n5 { animation-delay: 2.95s; }
+  .intro-svg .n6 { animation-delay: 3.65s; }
+  @keyframes pop-node {
+    0%   { opacity: 0; transform: scale(0.6); }
+    60%  { opacity: 1; transform: scale(1.10); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .intro-svg .node-num,
+  .intro-svg .node-label {
+    opacity: 0;
+    animation: fade-in 0.4s ease-out forwards;
+  }
+  .intro-svg .node-num   { animation-delay: 0.35s; }
+  .intro-svg .node-label { animation-delay: 0.45s; }
+  .intro-svg .n1 ~ .lbl-1 { animation-delay: 0.40s; }
+  .intro-svg .lbl-1 { animation-delay: 0.40s; }
+  .intro-svg .lbl-2 { animation-delay: 1.20s; }
+  .intro-svg .lbl-3 { animation-delay: 1.90s; }
+  .intro-svg .lbl-4 { animation-delay: 2.60s; }
+  .intro-svg .lbl-5 { animation-delay: 3.30s; }
+  .intro-svg .lbl-6 { animation-delay: 4.00s; }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .intro-svg .packet {
+    opacity: 0;
+    animation: packet-show 0.3s ease-out 4.5s forwards;
+  }
+  @keyframes packet-show { to { opacity: 1; } }
+
+  .intro-svg .node-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: node-pulse 2.4s ease-out infinite;
+    animation-delay: 5s;
+  }
+  @keyframes node-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(1); }
+    50%      { opacity: 0.15; transform: scale(1.18); }
+  }
+
+  .intro-svg .icon-text { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 800; fill: #fff; }
+  .intro-svg .node-num   { font-size: 13px; font-weight: 800; fill: var(--bracu-blue); letter-spacing: 1.5px; }
+  .intro-svg .node-label { font-size: 13px; font-weight: 700; fill: var(--ink); }
+  [data-theme="dark"] .intro-svg .node-label { fill: var(--ink); }
+
+  .intro-summary {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 1.04em;
+    line-height: 1.7;
+  }
+  .intro-summary strong { color: var(--ink); }
+
+  /* ============================================================
+     FLOATING BOTTOM-LEFT TOOLBAR (theme toggle + font slider)
+     ============================================================ */
+  .bl-toolbar {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 150;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* theme toggle — segmented switch */
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 4px 6px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-glass);
+    box-shadow: var(--shadow-soft);
+    cursor: pointer;
+    font: inherit;
+    color: var(--bracu-navy);
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .theme-toggle:hover { box-shadow: var(--shadow-medium); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--bracu-blue); outline-offset: 3px; }
+  .theme-toggle .tt-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1;
+    transition: color 0.2s ease;
+    user-select: none;
+  }
+  .theme-toggle .tt-option svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+    transition: transform 0.3s ease;
+  }
+  .theme-toggle[aria-pressed="false"] .tt-option.light { color: var(--bracu-blue); }
+  .theme-toggle[aria-pressed="true"]  .tt-option.dark  { color: #FFD773; }
+  .theme-toggle[aria-pressed="false"] .tt-option.light svg { transform: rotate(0deg); }
+  .theme-toggle[aria-pressed="true"]  .tt-option.dark  svg { transform: rotate(-12deg); }
+  .theme-toggle .tt-track {
+    position: relative;
+    width: 36px;
+    height: 18px;
+    border-radius: 999px;
+    background: rgba(31, 95, 181, 0.18);
+    transition: background 0.25s ease;
+    flex: 0 0 auto;
+  }
+  .theme-toggle .tt-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--bracu-blue);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: left 0.28s cubic-bezier(.4, 0, .2, 1), background 0.25s ease;
+  }
+  .theme-toggle[aria-pressed="true"] .tt-track { background: rgba(255, 215, 115, 0.28); }
+  .theme-toggle[aria-pressed="true"] .tt-knob { left: 20px; background: #FFD773; }
+  [data-theme="dark"] .theme-toggle { color: #FFD773; border-color: var(--line); }
+  [data-theme="dark"] .theme-toggle .tt-option.light { color: var(--muted); }
+
+  /* font-size slider — pill */
+  .font-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-glass);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .font-control .fc-icon {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--muted);
+    letter-spacing: 0;
+    line-height: 1;
+    font-family: 'Inter', sans-serif;
+  }
+  .font-control .fc-icon.big { font-size: 18px; color: var(--bracu-navy); }
+  .font-control input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 110px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--bg-lighter);
+    outline: none;
+    cursor: pointer;
+  }
+  .font-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--bracu-blue);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .font-control input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  .font-control input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: var(--bracu-blue);
+    cursor: pointer;
+  }
+  .font-control .fc-val {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--bracu-blue);
+    min-width: 32px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ============================================================
+     STICKY BOTTOM-RIGHT AUTHOR CREDIT
+     ============================================================ */
+  .author-credit {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 130;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: var(--surface-glass);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    letter-spacing: 0.3px;
+    font-weight: 500;
+    box-shadow: var(--shadow-soft);
+    white-space: nowrap;
+  }
+  .author-credit a {
+    color: var(--bracu-blue);
+    text-decoration: none;
+    font-weight: 700;
+    border-bottom: 1px dashed var(--bracu-blue);
+  }
+  .author-credit strong { color: var(--bracu-navy); font-weight: 700; }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width: 900px) {
+    :root { --sidebar-w: 100%; }
+    .layout { grid-template-columns: 1fr; }
+    .layout.collapsed { grid-template-columns: 1fr; }
+    .sidebar {
+      height: auto;
+      max-height: 40vh;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .sb-resize { display: none; }
+    .content { padding: 24px 20px 160px; }
+    .gp-header { padding: 0 12px; gap: 10px; }
+    .gp-header h1 { font-size: 0.95rem; }
+    .gp-header .h-tag { font-size: 0.6rem; padding: 3px 8px; letter-spacing: 1.5px; }
+    .gp-header .h-progress, .gp-header .h-meta { display: none; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .author-credit { font-size: 11px; padding: 6px 12px; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+    .bl-toolbar { left: 12px; bottom: 12px; gap: 6px; }
+    .font-control { padding: 0 10px; }
+    .font-control input[type="range"] { width: 80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     COMPACT HEADER (dynamic title)
+     ============================================================ -->
+<header class="gp-header">
+  <div class="h-left">
+    <span class="h-tag" id="headerTag">Intro</span>
+    <h1 id="headerTitle">MNIST Streamlit + Docker — <span class="hl">Overview</span></h1>
+  </div>
+  <div class="h-progress" aria-label="Overall progress">
+    <span class="hp-bar"><span class="hp-fill" id="headerProgressFill"></span></span>
+    <span id="headerProgressText">0 / 6</span>
+  </div>
+  <span class="h-meta">SICIP @ BRAC University · Week 11 · Lab 2</span>
+</header>
+
+<!-- ============================================================
+     LAYOUT (sidebar + content)
+     ============================================================ -->
+<div class="layout" id="layout">
+
+  <!-- ===== SIDEBAR (resizable + collapsible) ===== -->
+  <aside class="sidebar" id="sidebar" aria-label="Project steps">
+
+    <div class="sb-head">
+      <span class="sb-title">Project Steps</span>
+      <button class="sb-collapse" id="sbCollapse" type="button" aria-label="Collapse / expand sidebar" title="Collapse / expand sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 6 9 12 15 18"></polyline>
+        </svg>
+      </button>
+    </div>
+
+    <div class="sb-progress" aria-label="Steps completed">
+      <span class="sbp-bar"><span class="sbp-fill" id="sidebarProgressFill"></span></span>
+      <span class="sbp-text" id="sidebarProgressText">0 / 6</span>
+    </div>
+
+    <nav class="step-list" id="stepNav">
+      <!-- step buttons are populated below in HTML for SSR-friendliness;
+           JS only updates active / done classes -->
+
+      <button class="step-btn" data-target="intro" data-trackable="false" type="button">
+        <span class="sb-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+        <span class="sb-content">
+          <span class="sb-num">Intro</span>
+          <span class="sb-label">Overview &amp; the journey</span>
+        </span>
+      </button>
+
+      <button class="step-btn" data-target="step1" type="button">
+        <span class="sb-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+        <span class="sb-content">
+          <span class="sb-num">Step 01</span>
+          <span class="sb-label">Install Python 3.12.10 &amp; venv</span>
+        </span>
+      </button>
+
+      <button class="step-btn" data-target="step2" type="button">
+        <span class="sb-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+        <span class="sb-content">
+          <span class="sb-num">Step 02</span>
+          <span class="sb-label">Create requirements.txt</span>
+        </span>
+      </button>
+
+      <button class="step-btn" data-target="step3" type="button">
+        <span class="sb-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+        <span class="sb-content">
+          <span class="sb-num">Step 03</span>
+          <span class="sb-label">Build the Streamlit app</span>
+        </span>
+      </button>
+
+      <button class="step-btn" data-target="step4" type="button">
+        <span class="sb-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+        <span class="sb-content">
+          <span class="sb-num">Step 04</span>
+          <span class="sb-label">Run the webapp locally</span>
+        </span>
+      </button>
+
+      <button class="step-btn" data-target="step5" type="button">
+        <span class="sb-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+        <span class="sb-content">
+          <span class="sb-num">Step 05</span>
+          <span class="sb-label">Create the Docker image</span>
+        </span>
+      </button>
+
+      <button class="step-btn" data-target="step6" type="button">
+        <span class="sb-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+        <span class="sb-content">
+          <span class="sb-num">Step 06</span>
+          <span class="sb-label">Containerise &amp; serve</span>
+        </span>
+      </button>
+    </nav>
+
+    <!-- right-edge drag handle -->
+    <div class="sb-resize" id="sbResize" title="Drag to resize sidebar"></div>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="content" id="contentScroll">
+    <div class="content-inner">
+
+      <!-- ============================================================
+           PAGE 0 · INTRO (animated SVG hero)
+           ============================================================ -->
+      <section class="page" id="intro"
+               data-tag="Intro"
+               data-title='MNIST Streamlit + Docker — <span class="hl">Overview</span>'>
+        <span class="step-pill amber">Intro · The Journey</span>
+        <h2>From notebook artefacts to a portable container<span class="accent-line"></span></h2>
+        <p class="info-text">
+          We start with two files produced by <code>01_MNIST_Training.ipynb</code> — <code>mnist_model.keras</code> and <code>mnist_artifacts.pkl</code> — and end with a <strong>self-contained Docker image</strong> that runs the model behind a drawing UI. Six short steps, all on Windows.
+        </p>
+
+        <div class="intro-hero">
+          <svg class="intro-svg" viewBox="0 0 1180 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="From trained model to deployed container">
+            <defs>
+              <linearGradient id="grad-n1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stop-color="#4FA8E8"/>
+                <stop offset="100%" stop-color="#1F5FB5"/>
+              </linearGradient>
+              <linearGradient id="grad-n2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stop-color="#1F5FB5"/>
+                <stop offset="100%" stop-color="#003594"/>
+              </linearGradient>
+              <linearGradient id="grad-n3" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stop-color="#6FBDF2"/>
+                <stop offset="100%" stop-color="#1F5FB5"/>
+              </linearGradient>
+              <linearGradient id="grad-n4" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stop-color="#4FD49E"/>
+                <stop offset="100%" stop-color="#2EA77B"/>
+              </linearGradient>
+              <linearGradient id="grad-n5" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stop-color="#4FA8E8"/>
+                <stop offset="100%" stop-color="#003594"/>
+              </linearGradient>
+              <linearGradient id="grad-n6" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"  stop-color="#003594"/>
+                <stop offset="100%" stop-color="#1A1A1A"/>
+              </linearGradient>
+              <linearGradient id="grad-conn" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#1F5FB5"/>
+                <stop offset="100%" stop-color="#003594"/>
+              </linearGradient>
+              <radialGradient id="node-shine" cx="35%" cy="30%" r="65%">
+                <stop offset="0%"  stop-color="rgba(255,255,255,0.55)"/>
+                <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+              </radialGradient>
+              <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0A1830" flood-opacity="0.25"/>
+              </filter>
+            </defs>
+
+            <!-- Connectors (drawn under nodes) -->
+            <path class="conn c1" d="M 148,150 Q 195,90 242,150"/>
+            <path class="conn c2" d="M 338,150 Q 385,210 432,150"/>
+            <path class="conn c3" d="M 528,150 Q 575,90 622,150"/>
+            <path class="conn c4" d="M 718,150 Q 765,210 812,150"/>
+            <path class="conn c5" d="M 908,150 Q 955,90 1002,150"/>
+
+            <!-- Hidden path that the packet animates along -->
+            <path id="flow-path" fill="none" stroke="none"
+                  d="M 100,150
+                     Q 195,90 290,150
+                     Q 385,210 480,150
+                     Q 575,90 670,150
+                     Q 765,210 860,150
+                     Q 955,90 1050,150"/>
+
+            <!-- Flowing packet (starts after reveal, loops forever) -->
+            <g class="packet">
+              <circle r="10" fill="#FFD773" opacity="0.35"/>
+              <circle r="5"  fill="#FFD773"/>
+              <animateMotion dur="5.5s" begin="4.5s" repeatCount="indefinite">
+                <mpath href="#flow-path"/>
+              </animateMotion>
+            </g>
+
+            <!-- Node 1 · Python -->
+            <g transform="translate(100 150)">
+              <g class="node n1">
+                <circle class="node-pulse" r="48" fill="url(#grad-n1)" opacity="0.25"/>
+                <circle r="44" fill="url(#grad-n1)" filter="url(#soft-shadow)"/>
+                <circle r="44" fill="url(#node-shine)"/>
+                <text class="icon-text" y="7" text-anchor="middle">PY</text>
+              </g>
+            </g>
+            <text class="node-num lbl-1" x="100" y="226" text-anchor="middle">STEP 01</text>
+            <text class="node-label lbl-1" x="100" y="246" text-anchor="middle">Install Python</text>
+
+            <!-- Node 2 · requirements.txt -->
+            <g transform="translate(290 150)">
+              <g class="node n2">
+                <circle class="node-pulse" r="48" fill="url(#grad-n2)" opacity="0.25"/>
+                <circle r="44" fill="url(#grad-n2)" filter="url(#soft-shadow)"/>
+                <circle r="44" fill="url(#node-shine)"/>
+                <!-- document icon -->
+                <g transform="translate(-13 -16)" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 0 L20 0 L26 6 L26 32 L3 32 Z" fill="rgba(255,255,255,0.10)"/>
+                  <path d="M20 0 L20 6 L26 6"/>
+                  <line x1="8"  y1="13" x2="21" y2="13"/>
+                  <line x1="8"  y1="19" x2="21" y2="19"/>
+                  <line x1="8"  y1="25" x2="17" y2="25"/>
+                </g>
+              </g>
+            </g>
+            <text class="node-num lbl-2" x="290" y="226" text-anchor="middle">STEP 02</text>
+            <text class="node-label lbl-2" x="290" y="246" text-anchor="middle">Dependencies</text>
+
+            <!-- Node 3 · Streamlit app (pencil + canvas) -->
+            <g transform="translate(480 150)">
+              <g class="node n3">
+                <circle class="node-pulse" r="48" fill="url(#grad-n3)" opacity="0.25"/>
+                <circle r="44" fill="url(#grad-n3)" filter="url(#soft-shadow)"/>
+                <circle r="44" fill="url(#node-shine)"/>
+                <!-- canvas frame + pencil -->
+                <g transform="translate(-18 -16)" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="0" y="0" width="30" height="30" rx="3" fill="rgba(0,0,0,0.30)"/>
+                  <path d="M22 -6 L34 6 L18 22 L8 22 L8 12 Z" fill="#FFD773" stroke="#FFD773"/>
+                  <path d="M30 -2 L30 -2" />
+                  <line x1="8" y1="12" x2="18" y2="22" stroke="#fff"/>
+                  <path d="M9 14 q4 -2 8 2" stroke="#FFFFFF" stroke-width="2.6" fill="none"/>
+                </g>
+              </g>
+            </g>
+            <text class="node-num lbl-3" x="480" y="226" text-anchor="middle">STEP 03</text>
+            <text class="node-label lbl-3" x="480" y="246" text-anchor="middle">Build Streamlit app</text>
+
+            <!-- Node 4 · Run locally (play) -->
+            <g transform="translate(670 150)">
+              <g class="node n4">
+                <circle class="node-pulse" r="48" fill="url(#grad-n4)" opacity="0.25"/>
+                <circle r="44" fill="url(#grad-n4)" filter="url(#soft-shadow)"/>
+                <circle r="44" fill="url(#node-shine)"/>
+                <!-- play triangle -->
+                <polygon points="-10,-14 -10,14 16,0" fill="#fff"/>
+              </g>
+            </g>
+            <text class="node-num lbl-4" x="670" y="226" text-anchor="middle">STEP 04</text>
+            <text class="node-label lbl-4" x="670" y="246" text-anchor="middle">Run locally</text>
+
+            <!-- Node 5 · Docker (stacked container blocks) -->
+            <g transform="translate(860 150)">
+              <g class="node n5">
+                <circle class="node-pulse" r="48" fill="url(#grad-n5)" opacity="0.25"/>
+                <circle r="44" fill="url(#grad-n5)" filter="url(#soft-shadow)"/>
+                <circle r="44" fill="url(#node-shine)"/>
+                <!-- Docker-style stacked boxes -->
+                <g transform="translate(-22 -16)" fill="#fff" stroke="#fff" stroke-width="1">
+                  <rect x="0"  y="8"  width="11" height="11" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+                  <rect x="13" y="8"  width="11" height="11" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+                  <rect x="26" y="8"  width="11" height="11" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+                  <rect x="39" y="8"  width="6"  height="11" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+                  <rect x="13" y="-5" width="11" height="11" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+                  <rect x="26" y="-5" width="11" height="11" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+                  <!-- whale curve -->
+                  <path d="M -2 23 Q 22 32 46 23" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+                </g>
+              </g>
+            </g>
+            <text class="node-num lbl-5" x="860" y="226" text-anchor="middle">STEP 05</text>
+            <text class="node-label lbl-5" x="860" y="246" text-anchor="middle">Dockerise</text>
+
+            <!-- Node 6 · Serve (cloud + check) -->
+            <g transform="translate(1050 150)">
+              <g class="node n6">
+                <circle class="node-pulse" r="48" fill="url(#grad-n6)" opacity="0.25"/>
+                <circle r="44" fill="url(#grad-n6)" filter="url(#soft-shadow)"/>
+                <circle r="44" fill="url(#node-shine)"/>
+                <!-- cloud -->
+                <g transform="translate(-22 -10)" fill="#fff" stroke="#fff" stroke-width="1.6" stroke-linejoin="round">
+                  <path d="M9 12
+                           a8 8 0 0 1 16 -2
+                           a6 6 0 0 1 11 4
+                           a5 5 0 0 1 -5 5
+                           h-22
+                           a5 5 0 0 1 0 -10
+                           z"
+                        fill="rgba(255,255,255,0.92)"/>
+                  <!-- check inside -->
+                  <path d="M14 13 l4 4 l8 -8" stroke="#003594" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+              </g>
+            </g>
+            <text class="node-num lbl-6" x="1050" y="226" text-anchor="middle">STEP 06</text>
+            <text class="node-label lbl-6" x="1050" y="246" text-anchor="middle">Serve</text>
+
+            <!-- Bottom legend strip -->
+            <g opacity="0.85">
+              <line x1="40" y1="300" x2="1140" y2="300" stroke="var(--line)" stroke-dasharray="2 5"/>
+              <text x="40"   y="322" font-size="11" fill="var(--muted)" font-weight="700" letter-spacing="1.5">INPUT</text>
+              <text x="40"   y="322" font-size="11" fill="var(--muted)" font-weight="700" letter-spacing="1.5"></text>
+              <text x="1140" y="322" font-size="11" fill="var(--muted)" font-weight="700" letter-spacing="1.5" text-anchor="end">DEPLOYED CONTAINER</text>
+            </g>
+          </svg>
+        </div>
+
+        <p class="intro-summary">
+          The yellow packet you see flowing left-to-right is your <strong>artefact</strong> moving through the pipeline — starting as a Python interpreter, accumulating dependencies, getting wrapped in a UI, running locally, getting baked into a Docker image, and finally being served. Each card on the left maps to one stage of this journey. <strong>Click "Next" below</strong> (or any step in the sidebar) to dive in.
+        </p>
+
+        <div class="grid-3">
+          <div class="mini-card">
+            <div class="mc-label">You bring</div>
+            <div class="mc-text"><code>mnist_model.keras</code> + <code>mnist_artifacts.pkl</code> from the training notebook.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mc-label">You learn</div>
+            <div class="mc-text">Embeddable Python, virtualenv, Streamlit drawing canvas, Dockerfile layering, and image serving.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mc-label">You leave with</div>
+            <div class="mc-text">A reproducible <code>mnist-streamlit:0.1</code> image anyone can <code>docker run</code>.</div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          <button class="mark-done" type="button" data-mark-done style="visibility:hidden;"></button>
+          <div class="pf-nav">
+            <button class="pf-btn" type="button" data-nav="prev" disabled>&larr; Prev</button>
+            <button class="pf-btn primary" type="button" data-nav="next">Start &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 1 · STEP 01
+           ============================================================ -->
+      <section class="page" id="step1"
+               data-tag="Step 01"
+               data-title='Step 01 · <span class="hl">Install Python 3.12.10 &amp; venv</span>'>
+        <span class="step-pill">Step 01 · Environment</span>
+        <h2>Install Python 3.12.10 &amp; <code>venv</code> on Windows<span class="accent-line"></span></h2>
+        <p class="info-text">
+          We follow the <strong>same offline-friendly pattern</strong> as <code>01_setup_environment.bat</code>: download the official <em>embeddable</em> Python zip from <code>python.org</code>, unpack it into a project-local folder, install <code>pip</code> with <code>get-pip.py</code>, and then add <code>virtualenv</code> so we can create an isolated environment. The model was trained on <strong>Python 3.12.10</strong> with <strong>TensorFlow 2.20.0</strong>, so we match those versions exactly.
+        </p>
+
+        <div class="grid-3">
+          <div class="mini-card">
+            <div class="mc-label">What you get</div>
+            <div class="mc-text">A local Python interpreter at <code>mnist-python\python.exe</code> — no admin rights, no system install.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mc-label">Why embeddable</div>
+            <div class="mc-text">Zero installer, fully self-contained, easy to delete. Same approach as the BRAC lab setup script.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mc-label">Why virtualenv</div>
+            <div class="mc-text">Keeps Streamlit + TensorFlow dependencies pinned per project so you never break another env.</div>
+          </div>
+        </div>
+
+        <h3><span class="dot"></span>1.1 — Create the project folder &amp; open Command Prompt</h3>
+        <p class="info-text">Open <strong>Command Prompt</strong> (not PowerShell) so the commands below run exactly as written. Create a working folder and step into it. Place <code>mnist_model.keras</code> and <code>mnist_artifacts.pkl</code> here too.</p>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe</span>
+<pre class="codeblock"><span class="cm-comment">:: pick any folder you like — we use C:\mnist-app for the lab</span>
+<span class="cm-cmd">mkdir</span> <span class="cm-str">C:\mnist-app</span>
+<span class="cm-cmd">cd</span>    <span class="cm-str">C:\mnist-app</span>
+
+<span class="cm-comment">:: drop the two artefacts from the training notebook into this folder</span>
+<span class="cm-comment">:: (mnist_model.keras + mnist_artifacts.pkl)</span>
+<span class="cm-cmd">dir</span></pre>
+</div>
+
+        <h3><span class="dot"></span>1.2 — Download &amp; extract embeddable Python 3.12.10</h3>
+        <p class="info-text">Same pattern as the <code>01_setup_environment.bat</code> file: <code>curl</code> the zip, <code>mkdir</code> a folder for it, <code>tar -xf</code> to extract. Windows 10/11 ships with both <code>curl</code> and <code>tar</code> out of the box.</p>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe</span>
+<pre class="codeblock"><span class="cm-cmd">curl</span> <span class="cm-str">https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip</span> <span class="cm-flag">-o</span> <span class="cm-str">python-3.12.10-embed-amd64.zip</span>
+
+<span class="cm-cmd">mkdir</span> <span class="cm-str">mnist-python</span>
+<span class="cm-cmd">move</span>  <span class="cm-str">python-3.12.10-embed-amd64.zip</span> <span class="cm-str">mnist-python</span>
+<span class="cm-cmd">cd</span>    <span class="cm-str">mnist-python</span>
+<span class="cm-cmd">tar</span>   <span class="cm-flag">-xf</span> <span class="cm-str">python-3.12.10-embed-amd64.zip</span>
+
+<span class="cm-cmd">.\python.exe</span> <span class="cm-flag">--version</span>
+<span class="cm-comment">:: expected output: Python 3.12.10</span></pre>
+</div>
+
+        <h3><span class="dot"></span>1.3 — Bootstrap <code>pip</code> and unlock <code>site-packages</code></h3>
+        <p class="info-text">
+          The embeddable Python ships <em>without</em> <code>pip</code> and with a <code>._pth</code> file that disables <code>site</code> imports — both of which break <code>virtualenv</code>. We fix both with two tiny commands.
+        </p>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe   (still inside mnist-python\)</span>
+<pre class="codeblock"><span class="cm-comment">:: 1. download the pip bootstrap and install it</span>
+<span class="cm-cmd">curl</span> <span class="cm-str">https://bootstrap.pypa.io/get-pip.py</span> <span class="cm-flag">-o</span> <span class="cm-str">get-pip.py</span>
+<span class="cm-cmd">.\python.exe</span> <span class="cm-str">get-pip.py</span>
+
+<span class="cm-comment">:: 2. enable `import site` so virtualenv can find packages</span>
+<span class="cm-cmd">echo</span> <span class="cm-str">import site</span> &gt;&gt; <span class="cm-str">python312._pth</span>
+
+<span class="cm-comment">:: 3. tidy up the installers</span>
+<span class="cm-cmd">del</span> <span class="cm-str">get-pip.py</span>
+<span class="cm-cmd">del</span> <span class="cm-str">python-3.12.10-embed-amd64.zip</span></pre>
+</div>
+
+        <h3><span class="dot"></span>1.4 — Install <code>virtualenv</code> and create the project env</h3>
+        <p class="info-text">
+          We install <code>virtualenv</code> with the freshly-bootstrapped <code>pip</code>, then create an env called <strong><code>mnist-env</code></strong> in the project root. Activating it puts a clean <code>(mnist-env)</code> prefix on your prompt and pins all future <code>pip install</code> commands to this env.
+        </p>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe</span>
+<pre class="codeblock"><span class="cm-comment">:: still inside C:\mnist-app\mnist-python — install virtualenv</span>
+<span class="cm-cmd">.\Scripts\pip.exe</span> <span class="cm-cmd">install</span> <span class="cm-str">virtualenv</span>
+
+<span class="cm-comment">:: hop back to the project root and create the env there</span>
+<span class="cm-cmd">cd</span> <span class="cm-str">..</span>
+<span class="cm-cmd">mnist-python\Scripts\virtualenv.exe</span> <span class="cm-flag">-p</span> <span class="cm-str">mnist-python\python.exe</span> <span class="cm-str">mnist-env</span>
+
+<span class="cm-comment">:: activate it — your prompt should now start with (mnist-env)</span>
+<span class="cm-cmd">mnist-env\Scripts\activate</span>
+
+<span class="cm-comment">:: sanity check</span>
+<span class="cm-cmd">python</span> <span class="cm-flag">--version</span>      <span class="cm-comment">:: -> Python 3.12.10</span>
+<span class="cm-cmd">where</span> <span class="cm-str">python</span>           <span class="cm-comment">:: -> ...\mnist-env\Scripts\python.exe</span></pre>
+</div>
+
+        <div class="callout ok">
+          <strong>Checkpoint —</strong> your prompt now reads <code>(mnist-env) C:\mnist-app&gt;</code> and <code>python --version</code> prints <code>Python 3.12.10</code>. You have a fully isolated, project-local interpreter ready for TensorFlow.
+        </div>
+
+        <div class="page-footer">
+          <button class="mark-done" type="button" data-mark-done>
+            <span class="md-icon"></span>
+            <span class="md-label">Mark this step as done</span>
+          </button>
+          <div class="pf-nav">
+            <button class="pf-btn" type="button" data-nav="prev">&larr; Prev</button>
+            <button class="pf-btn primary" type="button" data-nav="next">Next &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 2 · STEP 02
+           ============================================================ -->
+      <section class="page" id="step2"
+               data-tag="Step 02"
+               data-title='Step 02 · <span class="hl">Create requirements.txt &amp; install</span>'>
+        <span class="step-pill blue">Step 02 · Dependencies</span>
+        <h2>Create <code>requirements.txt</code> and install<span class="accent-line"></span></h2>
+        <p class="info-text">
+          We pin every package to the <strong>exact version</strong> the model was trained against (see the table in the training notebook). Pinning makes the env reproducible and — crucially — guarantees that the <code>.keras</code> file loads with no version-skew warnings. We add <strong>Streamlit</strong> and the <strong>drawable canvas</strong> component on top so we can draw digits in the browser.
+        </p>
+
+        <h3><span class="dot"></span>2.1 — Author <code>requirements.txt</code></h3>
+        <p class="info-text">Create the file in the project root (<code>C:\mnist-app</code>). You can paste this into Notepad and save as <code>requirements.txt</code>, or use the one-shot <code>echo</code>-with-heredoc below.</p>
+<div class="codeblock-wrap">
+  <span class="cb-label">requirements.txt</span>
+<pre class="codeblock"><span class="cm-comment"># ===== Web app =====</span>
+<span class="cm-key">streamlit</span>==<span class="cm-num">1.38.0</span>
+<span class="cm-key">streamlit-drawable-canvas</span>==<span class="cm-num">0.9.3</span>
+
+<span class="cm-comment"># ===== ML runtime (matches the training notebook) =====</span>
+<span class="cm-key">tensorflow</span>==<span class="cm-num">2.20.0</span>
+<span class="cm-key">numpy</span>==<span class="cm-num">2.0.2</span>
+<span class="cm-key">pandas</span>==<span class="cm-num">2.2.2</span>
+<span class="cm-key">scikit-learn</span>==<span class="cm-num">1.6.1</span>
+
+<span class="cm-comment"># ===== Image preprocessing =====</span>
+<span class="cm-key">Pillow</span>==<span class="cm-num">10.4.0</span></pre>
+</div>
+
+        <p class="info-text">If you prefer to create it from the command line, this works in Command Prompt:</p>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe</span>
+<pre class="codeblock"><span class="cm-cmd">(</span>
+<span class="cm-cmd">echo</span> <span class="cm-str">streamlit==1.38.0</span>
+<span class="cm-cmd">echo</span> <span class="cm-str">streamlit-drawable-canvas==0.9.3</span>
+<span class="cm-cmd">echo</span> <span class="cm-str">tensorflow==2.20.0</span>
+<span class="cm-cmd">echo</span> <span class="cm-str">numpy==2.0.2</span>
+<span class="cm-cmd">echo</span> <span class="cm-str">pandas==2.2.2</span>
+<span class="cm-cmd">echo</span> <span class="cm-str">scikit-learn==1.6.1</span>
+<span class="cm-cmd">echo</span> <span class="cm-str">Pillow==10.4.0</span>
+<span class="cm-cmd">)</span> &gt; <span class="cm-str">requirements.txt</span>
+
+<span class="cm-cmd">type</span> <span class="cm-str">requirements.txt</span>   <span class="cm-comment">:: verify the file content</span></pre>
+</div>
+
+        <h3><span class="dot"></span>2.2 — Install everything into the active env</h3>
+        <p class="info-text">
+          Make sure your prompt still says <code>(mnist-env)</code>. Upgrade <code>pip</code> first (TensorFlow wheels are large and modern <code>pip</code> resolves faster), then install from the file. The first run may take a few minutes — TensorFlow alone is ~ 600&nbsp;MB.
+        </p>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe   (inside C:\mnist-app, with mnist-env active)</span>
+<pre class="codeblock"><span class="cm-cmd">python</span> <span class="cm-flag">-m</span> pip install <span class="cm-flag">--upgrade</span> pip
+<span class="cm-cmd">pip</span> install <span class="cm-flag">-r</span> <span class="cm-str">requirements.txt</span>
+
+<span class="cm-comment">:: confirm the critical packages landed at the right versions</span>
+<span class="cm-cmd">python</span> <span class="cm-flag">-c</span> <span class="cm-str">"import tensorflow as tf, streamlit as st; print(tf.__version__, st.__version__)"</span>
+<span class="cm-comment">:: expected output: 2.20.0 1.38.0</span></pre>
+</div>
+
+        <div class="callout">
+          <strong>If you see <code>ERROR: Could not find a version</code> for TensorFlow —</strong> double-check that <code>python --version</code> says <strong>3.12.10</strong> and that you are on <strong>64-bit Windows</strong>. TensorFlow 2.20 has no 32-bit wheel.
+        </div>
+
+        <div class="page-footer">
+          <button class="mark-done" type="button" data-mark-done>
+            <span class="md-icon"></span>
+            <span class="md-label">Mark this step as done</span>
+          </button>
+          <div class="pf-nav">
+            <button class="pf-btn" type="button" data-nav="prev">&larr; Prev</button>
+            <button class="pf-btn primary" type="button" data-nav="next">Next &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 3 · STEP 03 · Streamlit drawing app
+           ============================================================ -->
+      <section class="page" id="step3"
+               data-tag="Step 03"
+               data-title='Step 03 · <span class="hl">Build the Streamlit drawing app</span>'>
+        <span class="step-pill sky">Step 03 · Webapp</span>
+        <h2>Build the Streamlit drawing app<span class="accent-line"></span></h2>
+        <p class="info-text">
+          The training notebook saved a tiny <strong>Flatten → Dense(256) → Dropout → Dense(128) → Dropout → Dense(10, softmax)</strong> network as <code>mnist_model.keras</code>, plus a metadata pickle <code>mnist_artifacts.pkl</code> with the <strong>preprocess</strong> function, <strong>class labels</strong>, and the expected <strong>input shape <code>(28, 28)</code></strong>. The app below:
+        </p>
+        <ul class="bare">
+          <li>Loads the <code>.keras</code> model and the pickle <strong>once</strong> via <code>@st.cache_resource</code>.</li>
+          <li>Renders a 280×280 <strong>black canvas</strong> where the user draws a digit in white (MNIST style).</li>
+          <li>Down-samples that to <strong>28×28 grayscale</strong>, divides by <code>255</code> (the saved <code>preprocess</code>), and runs <code>model.predict</code>.</li>
+          <li>Shows the predicted digit, its confidence, and a bar chart of all class probabilities.</li>
+        </ul>
+
+        <h3><span class="dot"></span>3.1 — File layout</h3>
+        <p class="info-text">After this step your project folder should look like this:</p>
+<div class="codeblock-wrap">
+  <span class="cb-label">C:\mnist-app\</span>
+<pre class="codeblock">C:\mnist-app\
+├── <span class="cm-key">mnist-python\</span>            <span class="cm-comment"># embeddable Python (Step 1)</span>
+├── <span class="cm-key">mnist-env\</span>               <span class="cm-comment"># virtualenv (Step 1)</span>
+├── <span class="cm-str">requirements.txt</span>         <span class="cm-comment"># pinned deps (Step 2)</span>
+├── <span class="cm-str">mnist_model.keras</span>        <span class="cm-comment"># trained Keras model</span>
+├── <span class="cm-str">mnist_artifacts.pkl</span>      <span class="cm-comment"># labels + preprocess + metadata</span>
+└── <span class="cm-str">app.py</span>                   <span class="cm-comment"># &lt;-- we create this next</span></pre>
+</div>
+
+        <h3><span class="dot"></span>3.2 — Create <code>app.py</code></h3>
+        <p class="info-text">Save the following as <code>C:\mnist-app\app.py</code>. Every section is commented so you can map it back to the architecture.</p>
+<div class="codeblock-wrap">
+  <span class="cb-label">app.py</span>
+<pre class="codeblock"><span class="cm-comment"># ============================================================
+# MNIST Digit Recognizer — Streamlit front-end for mnist_model.keras
+# ============================================================</span>
+<span class="cm-key">from</span> pathlib <span class="cm-key">import</span> Path
+<span class="cm-key">import</span> pickle
+
+<span class="cm-key">import</span> numpy <span class="cm-key">as</span> np
+<span class="cm-key">import</span> streamlit <span class="cm-key">as</span> st
+<span class="cm-key">import</span> tensorflow <span class="cm-key">as</span> tf
+<span class="cm-key">from</span> PIL <span class="cm-key">import</span> Image
+<span class="cm-key">from</span> streamlit_drawable_canvas <span class="cm-key">import</span> st_canvas
+
+<span class="cm-comment"># ---- IMPORTANT — re-declare `normalize` exactly as it was in the training notebook.
+# mnist_artifacts.pkl stores artifacts["preprocess"] = normalize as a *function reference*
+# (pickle records the module + name, not the body). When pickle.load() runs here, Python
+# tries to resolve __main__.normalize — so this top-level definition must exist BEFORE
+# load_artifacts() is called, otherwise you will hit:
+#     AttributeError: Can't get attribute 'normalize' on &lt;module '__main__' from 'app.py'&gt;</span>
+<span class="cm-key">def</span> normalize(images: np.ndarray) -&gt; np.ndarray:
+    <span class="cm-key">return</span> images.astype(<span class="cm-str">"float32"</span>) / <span class="cm-num">255.0</span>
+
+<span class="cm-comment"># ---- paths (relative to this file so it works in Docker too) ----</span>
+ROOT          = Path(__file__).parent
+MODEL_PATH    = ROOT / <span class="cm-str">"mnist_model.keras"</span>
+ARTIFACT_PATH = ROOT / <span class="cm-str">"mnist_artifacts.pkl"</span>
+
+<span class="cm-comment"># ---- page config ----</span>
+st.set_page_config(
+    page_title=<span class="cm-str">"MNIST Digit Recognizer"</span>,
+    page_icon=<span class="cm-str">"&#128221;"</span>,
+    layout=<span class="cm-str">"centered"</span>,
+)
+
+<span class="cm-comment"># ---- cached loader: runs once per server, not once per click ----</span>
+<span class="cm-note">@st.cache_resource(show_spinner=<span class="cm-str">"Loading MNIST model…"</span>)</span>
+<span class="cm-key">def</span> load_artifacts():
+    <span class="cm-key">with</span> open(ARTIFACT_PATH, <span class="cm-str">"rb"</span>) <span class="cm-key">as</span> f:
+        artifacts = pickle.load(f)
+    model = tf.keras.models.load_model(MODEL_PATH)
+    <span class="cm-key">return</span> artifacts, model
+
+artifacts, model = load_artifacts()
+class_labels = artifacts[<span class="cm-str">"class_labels"</span>]            <span class="cm-comment"># [0,1,…,9]</span>
+input_shape  = tuple(artifacts[<span class="cm-str">"input_shape"</span>])      <span class="cm-comment"># (28, 28)</span>
+
+<span class="cm-comment"># ---- preprocess: rgba canvas -> (1, 28, 28) float32 in [0, 1] ----</span>
+<span class="cm-key">def</span> preprocess(rgba: np.ndarray) -&gt; np.ndarray:
+    img  = Image.fromarray(rgba.astype(<span class="cm-str">"uint8"</span>)).convert(<span class="cm-str">"L"</span>)
+    img  = img.resize((input_shape[<span class="cm-num">1</span>], input_shape[<span class="cm-num">0</span>]), Image.LANCZOS)
+    arr  = np.asarray(img, dtype=<span class="cm-str">"float32"</span>) / <span class="cm-num">255.0</span>
+    <span class="cm-key">return</span> arr[np.newaxis, ...]
+
+<span class="cm-comment"># ============================== UI ==============================</span>
+st.title(<span class="cm-str">"&#128221;  MNIST Digit Recognizer"</span>)
+st.caption(
+    <span class="cm-str">"Draw a digit (0–9) in the black box. "
+    "The model expects a thick white stroke on a black background — "
+    "the same colour scheme it was trained on."</span>
+)
+
+col_draw, col_pred = st.columns([<span class="cm-num">1.05</span>, <span class="cm-num">1</span>])
+
+<span class="cm-key">with</span> col_draw:
+    st.subheader(<span class="cm-str">"1. Draw"</span>)
+    canvas = st_canvas(
+        fill_color=<span class="cm-str">"rgba(0,0,0,0)"</span>,
+        stroke_width=<span class="cm-num">18</span>,
+        stroke_color=<span class="cm-str">"#FFFFFF"</span>,
+        background_color=<span class="cm-str">"#000000"</span>,
+        height=<span class="cm-num">280</span>,
+        width=<span class="cm-num">280</span>,
+        drawing_mode=<span class="cm-str">"freedraw"</span>,
+        key=<span class="cm-str">"mnist-canvas"</span>,
+    )
+    predict_clicked = st.button(<span class="cm-str">"&#128640;  Predict"</span>, type=<span class="cm-str">"primary"</span>, use_container_width=<span class="cm-key">True</span>)
+
+<span class="cm-key">with</span> col_pred:
+    st.subheader(<span class="cm-str">"2. Prediction"</span>)
+    <span class="cm-key">if</span> predict_clicked <span class="cm-key">and</span> canvas.image_data <span class="cm-key">is not</span> <span class="cm-key">None</span>:
+        x = preprocess(canvas.image_data)
+
+        <span class="cm-key">if</span> x.sum() &lt; <span class="cm-num">1e-3</span>:
+            st.warning(<span class="cm-str">"The canvas looks empty — draw a digit and click Predict."</span>)
+        <span class="cm-key">else</span>:
+            probs = model.predict(x, verbose=<span class="cm-num">0</span>)[<span class="cm-num">0</span>]
+            top   = int(np.argmax(probs))
+
+            st.metric(label=<span class="cm-str">"Predicted digit"</span>,
+                      value=str(class_labels[top]),
+                      delta=<span class="cm-str">f"{probs[top]*100:.1f}% confident"</span>)
+            st.progress(float(probs[top]))
+
+            st.caption(<span class="cm-str">"Full softmax distribution"</span>)
+            st.bar_chart(
+                {str(c): float(p) <span class="cm-key">for</span> c, p <span class="cm-key">in</span> zip(class_labels, probs)}
+            )
+    <span class="cm-key">else</span>:
+        st.info(<span class="cm-str">"Draw something on the left, then press **Predict**."</span>)
+
+<span class="cm-comment"># ---- sidebar diagnostics ----</span>
+<span class="cm-key">with</span> st.sidebar:
+    st.header(<span class="cm-str">"Model card"</span>)
+    st.write(<span class="cm-str">"**Architecture:** Flatten → Dense(256, ReLU) → Dropout → Dense(128, ReLU) → Dropout → Dense(10, softmax)"</span>)
+    st.write(<span class="cm-str">f"**TensorFlow:** `{artifacts.get('tensorflow_version', tf.__version__)}`"</span>)
+    test_metrics = artifacts.get(<span class="cm-str">"test_metrics"</span>, {})
+    <span class="cm-key">if</span> test_metrics:
+        st.write(<span class="cm-str">f"**Test accuracy:** `{test_metrics.get('accuracy', 0):.4f}`"</span>)
+        st.write(<span class="cm-str">f"**Test loss:**     `{test_metrics.get('loss', 0):.4f}`"</span>)</pre>
+</div>
+
+        <div class="callout">
+          <strong>Three implementation notes —</strong>
+          <br>•&nbsp;<strong>Why the <code>normalize</code> function is re-declared at the top of <code>app.py</code>:</strong> the training notebook saved <code>artifacts["preprocess"] = normalize</code>, and pickle records that as the reference <code>__main__.normalize</code>. When Streamlit unpickles the file, Python searches the current <code>__main__</code> (i.e. <code>app.py</code>) for a function with that exact name. If it is missing you will see
+          <code>AttributeError: Can't get attribute 'normalize' on &lt;module '__main__' from '…/app.py'&gt;</code>.
+          The body must be byte-identical to the notebook's version (<code>images.astype("float32") / 255.0</code>).
+          <br>•&nbsp;The training pipeline normalised pixels with <code>x / 255.0</code> on a black-background image. Our canvas already produces white strokes on black, so we replicate the exact same scaling — <strong>no inversion needed</strong>.
+          <br>•&nbsp;<code>@st.cache_resource</code> keeps the loaded Keras model in memory across reruns; without it Streamlit would reload the model on every keystroke.
+        </div>
+
+        <div class="page-footer">
+          <button class="mark-done" type="button" data-mark-done>
+            <span class="md-icon"></span>
+            <span class="md-label">Mark this step as done</span>
+          </button>
+          <div class="pf-nav">
+            <button class="pf-btn" type="button" data-nav="prev">&larr; Prev</button>
+            <button class="pf-btn primary" type="button" data-nav="next">Next &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 4 · STEP 04 · Run the webapp
+           ============================================================ -->
+      <section class="page" id="step4"
+               data-tag="Step 04"
+               data-title='Step 04 · <span class="hl">Run the webapp locally</span>'>
+        <span class="step-pill green">Step 04 · Run</span>
+        <h2>Run the webapp locally<span class="accent-line"></span></h2>
+        <p class="info-text">
+          With <code>mnist-env</code> still active, fire up Streamlit. It will start a small dev server on port <strong>8501</strong> and open the page in your default browser automatically.
+        </p>
+
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe   (inside C:\mnist-app, with mnist-env active)</span>
+<pre class="codeblock"><span class="cm-cmd">streamlit</span> run <span class="cm-str">app.py</span>
+
+<span class="cm-comment">:: ----- Expected console output -----</span>
+<span class="cm-comment">::  You can now view your Streamlit app in your browser.</span>
+<span class="cm-comment">::    Local URL:    http://localhost:8501</span>
+<span class="cm-comment">::    Network URL:  http://192.168.x.x:8501</span></pre>
+</div>
+
+        <div class="grid-2">
+          <div class="mini-card">
+            <div class="mc-label">Hot reload</div>
+            <div class="mc-text">Edit <code>app.py</code>, hit <strong>save</strong>, then click <em>"Rerun"</em> in the browser. Streamlit picks up changes instantly.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mc-label">Stop the server</div>
+            <div class="mc-text">Press <code>Ctrl + C</code> in the Command Prompt window. The cached model is released and the port is freed.</div>
+          </div>
+        </div>
+
+        <h3><span class="dot"></span>4.1 — Smoke test</h3>
+        <ol>
+          <li>Draw a clearly recognisable <strong>3</strong> in the black box.</li>
+          <li>Click <strong>Predict</strong>.</li>
+          <li>Confirm the right pane shows <code>Predicted digit: 3</code> with high confidence (typically &gt; 95 %).</li>
+          <li>Try a few more digits — especially <strong>4 vs 9</strong> and <strong>1 vs 7</strong> — to see how confident the model is on tricky pairs.</li>
+        </ol>
+
+        <div class="callout ok">
+          <strong>Checkpoint —</strong> if the app loads and returns the correct digit for a handful of examples, your local pipeline is complete. The next steps wrap it into a portable container.
+        </div>
+
+        <h3><span class="dot"></span>4.2 — Common error you may hit</h3>
+        <div class="callout">
+          <strong>If the page crashes with</strong>
+          <code>AttributeError: Can't get attribute 'normalize' on &lt;module '__main__' from '…/app.py'&gt;</code> &mdash;
+          it means the <code>normalize</code> function that pickle stored inside <code>mnist_artifacts.pkl</code> cannot be resolved in your current <code>app.py</code>. Make sure the following block (copied verbatim from the training notebook) sits at the <strong>top of <code>app.py</code>, before <code>load_artifacts()</code> is called</strong>:
+<pre class="codeblock"><span class="cm-key">def</span> normalize(images: np.ndarray) -&gt; np.ndarray:
+    <span class="cm-key">return</span> images.astype(<span class="cm-str">"float32"</span>) / <span class="cm-num">255.0</span></pre>
+          Save the file and refresh the browser — Streamlit will reload <code>app.py</code> and the artifacts will unpickle cleanly.
+        </div>
+
+        <div class="page-footer">
+          <button class="mark-done" type="button" data-mark-done>
+            <span class="md-icon"></span>
+            <span class="md-label">Mark this step as done</span>
+          </button>
+          <div class="pf-nav">
+            <button class="pf-btn" type="button" data-nav="prev">&larr; Prev</button>
+            <button class="pf-btn primary" type="button" data-nav="next">Next &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 5 · STEP 05 · Dockerfile
+           ============================================================ -->
+      <section class="page" id="step5"
+               data-tag="Step 05"
+               data-title='Step 05 · <span class="hl">Create the Docker image</span>'>
+        <span class="step-pill">Step 05 · Image</span>
+        <h2>Create the Docker image<span class="accent-line"></span></h2>
+        <p class="info-text">
+          A container is just a <strong>filesystem snapshot</strong> with a recipe for which command to run. We base ours on <code>python:3.12.10-slim</code> (a 70 MB Debian-slim image that already has Python 3.12.10 pre-installed — same version we developed against), install the same <code>requirements.txt</code>, then copy <code>app.py</code> and both model artefacts in.
+        </p>
+        <p class="info-text">
+          <strong>Prerequisite:</strong> install <a href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener" style="color:var(--bracu-blue);font-weight:700;">Docker Desktop for Windows</a> and make sure the whale icon in your system tray is green (<em>"Docker Desktop is running"</em>). Verify with <code>docker --version</code> in a fresh Command Prompt.
+        </p>
+
+        <h3><span class="dot"></span>5.1 — Create the <code>Dockerfile</code></h3>
+        <p class="info-text">Save this <strong>exact</strong> filename (<code>Dockerfile</code>, no extension) in <code>C:\mnist-app</code>:</p>
+<div class="codeblock-wrap">
+  <span class="cb-label">Dockerfile</span>
+<pre class="codeblock"><span class="cm-comment"># ---- base image: matches the Python version used in training ----</span>
+<span class="cm-key">FROM</span> python:3.12.10-slim
+
+<span class="cm-comment"># keep python output unbuffered + don't write .pyc files inside the image</span>
+<span class="cm-key">ENV</span> PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+<span class="cm-key">WORKDIR</span> /app
+
+<span class="cm-comment"># ---- system deps for Pillow / streamlit-drawable-canvas ----</span>
+<span class="cm-key">RUN</span> apt-get update &amp;&amp; apt-get install -y --no-install-recommends \
+        curl \
+        libglib2.0-0 \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+<span class="cm-comment"># ---- python deps (cached layer: copy file first, then install) ----</span>
+<span class="cm-key">COPY</span> requirements.txt ./
+<span class="cm-key">RUN</span> pip install --upgrade pip &amp;&amp; pip install -r requirements.txt
+
+<span class="cm-comment"># ---- copy application + model artefacts ----</span>
+<span class="cm-key">COPY</span> app.py mnist_model.keras mnist_artifacts.pkl ./
+
+<span class="cm-comment"># ---- runtime config ----</span>
+<span class="cm-key">EXPOSE</span> 8501
+<span class="cm-key">HEALTHCHECK</span> --interval=30s --timeout=10s --start-period=20s \
+  CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+
+<span class="cm-key">ENTRYPOINT</span> [<span class="cm-str">"streamlit"</span>, <span class="cm-str">"run"</span>, <span class="cm-str">"app.py"</span>, \
+            <span class="cm-str">"--server.port=8501"</span>, \
+            <span class="cm-str">"--server.address=0.0.0.0"</span>, \
+            <span class="cm-str">"--browser.gatherUsageStats=false"</span>]</pre>
+</div>
+
+        <h3><span class="dot"></span>5.2 — Add a <code>.dockerignore</code></h3>
+        <p class="info-text">
+          Without this, Docker would copy your entire <code>mnist-python\</code>, <code>mnist-env\</code> and any cache directories into the build context — easily a 2 GB transfer that you don't want in the image. The file below trims it down to just the four things the image actually needs.
+        </p>
+<div class="codeblock-wrap">
+  <span class="cb-label">.dockerignore</span>
+<pre class="codeblock"><span class="cm-comment"># local virtualenv &amp; embeddable python — recreated inside the image</span>
+mnist-env/
+mnist-python/
+*.zip
+
+<span class="cm-comment"># python &amp; tooling caches</span>
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+<span class="cm-comment"># IDE / OS noise</span>
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+<span class="cm-comment"># docs &amp; misc artefacts that aren't needed at runtime</span>
+*.md
+*.html
+*.bat
+*.ipynb</pre>
+</div>
+
+        <div class="callout">
+          <strong>Why the layer order matters —</strong> we <code>COPY requirements.txt</code> <em>before</em> the rest of the code, then run <code>pip install</code>. Docker caches that whole layer. Next time you edit <code>app.py</code> but leave dependencies untouched, the slow <code>pip install</code> step is skipped entirely and the rebuild takes seconds instead of minutes.
+        </div>
+
+        <div class="page-footer">
+          <button class="mark-done" type="button" data-mark-done>
+            <span class="md-icon"></span>
+            <span class="md-label">Mark this step as done</span>
+          </button>
+          <div class="pf-nav">
+            <button class="pf-btn" type="button" data-nav="prev">&larr; Prev</button>
+            <button class="pf-btn primary" type="button" data-nav="next">Next &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PAGE 6 · STEP 06 · Build & serve
+           ============================================================ -->
+      <section class="page" id="step6"
+               data-tag="Step 06"
+               data-title='Step 06 · <span class="hl">Containerise &amp; serve</span>'>
+        <span class="step-pill blue">Step 06 · Serve</span>
+        <h2>Containerise &amp; serve<span class="accent-line"></span></h2>
+        <p class="info-text">
+          Everything is in place. Build the image, run it, and open <code>http://localhost:8501</code> in any browser on your machine. From this point on, <strong>nothing about your host matters</strong> — anyone with Docker can run this exact same container and get an identical app.
+        </p>
+
+        <h3><span class="dot"></span>6.1 — Build the image</h3>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe   (inside C:\mnist-app)</span>
+<pre class="codeblock"><span class="cm-cmd">docker</span> build <span class="cm-flag">-t</span> <span class="cm-str">mnist-streamlit:0.1</span> .
+
+<span class="cm-comment">:: first build takes ~2-4 minutes (pip downloads + tensorflow wheel)</span>
+<span class="cm-comment">:: subsequent builds use the layer cache and take ~10 seconds</span>
+
+<span class="cm-cmd">docker</span> images <span class="cm-str">mnist-streamlit</span>
+<span class="cm-comment">:: REPOSITORY        TAG    IMAGE ID       CREATED          SIZE</span>
+<span class="cm-comment">:: mnist-streamlit   0.1    9a4b3...       1 minute ago     1.8GB</span></pre>
+</div>
+
+        <h3><span class="dot"></span>6.2 — Run the container</h3>
+        <p class="info-text">
+          The <code>-p 8501:8501</code> flag maps the container's port to your host. The <code>--name</code> gives it a friendly handle so we can stop / restart it easily. <code>--rm</code> tells Docker to delete the container (not the image) when it exits, keeping things tidy.
+        </p>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe</span>
+<pre class="codeblock"><span class="cm-cmd">docker</span> run <span class="cm-flag">--rm</span> <span class="cm-flag">-p</span> <span class="cm-str">8501:8501</span> <span class="cm-flag">--name</span> <span class="cm-str">mnist-app</span> <span class="cm-str">mnist-streamlit:0.1</span>
+
+<span class="cm-comment">:: ----- expected output -----</span>
+<span class="cm-comment">::  You can now view your Streamlit app in your browser.</span>
+<span class="cm-comment">::    URL: http://0.0.0.0:8501</span>
+
+<span class="cm-comment">:: open in your browser:</span>
+<span class="cm-cmd">start</span> <span class="cm-str">http://localhost:8501</span></pre>
+</div>
+
+        <h3><span class="dot"></span>6.3 — Useful day-2 commands</h3>
+<div class="codeblock-wrap">
+  <span class="cb-label">cmd.exe   (cheat-sheet)</span>
+<pre class="codeblock"><span class="cm-comment">:: run in the background so you get your prompt back</span>
+<span class="cm-cmd">docker</span> run <span class="cm-flag">-d</span> <span class="cm-flag">-p</span> <span class="cm-str">8501:8501</span> <span class="cm-flag">--name</span> <span class="cm-str">mnist-app</span> <span class="cm-str">mnist-streamlit:0.1</span>
+
+<span class="cm-comment">:: tail the live logs</span>
+<span class="cm-cmd">docker</span> logs <span class="cm-flag">-f</span> <span class="cm-str">mnist-app</span>
+
+<span class="cm-comment">:: stop &amp; remove the running container</span>
+<span class="cm-cmd">docker</span> stop <span class="cm-str">mnist-app</span>
+<span class="cm-cmd">docker</span> rm   <span class="cm-str">mnist-app</span>
+
+<span class="cm-comment">:: push to a registry so a colleague can `docker pull` it</span>
+<span class="cm-cmd">docker</span> tag  <span class="cm-str">mnist-streamlit:0.1</span> <span class="cm-str">ghcr.io/&lt;your-handle&gt;/mnist-streamlit:0.1</span>
+<span class="cm-cmd">docker</span> push <span class="cm-str">ghcr.io/&lt;your-handle&gt;/mnist-streamlit:0.1</span></pre>
+</div>
+
+        <div class="grid-3">
+          <div class="mini-card">
+            <div class="mc-label">Port mapping</div>
+            <div class="mc-text"><code>-p 8501:8501</code> ⇒ host port (left) maps to container port (right). Pick any free host port if 8501 is taken.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mc-label">Image size</div>
+            <div class="mc-text">~1.8 GB — TensorFlow dominates. For a leaner image swap to <strong>TF-Lite</strong> or use a multi-stage build.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mc-label">Reproducibility</div>
+            <div class="mc-text">Every dependency is pinned. The image you build today will produce the same predictions in <strong>2027</strong>.</div>
+          </div>
+        </div>
+
+        <div class="callout ok">
+          <strong>Done.</strong> You took a Keras <code>.keras</code> file out of a Jupyter notebook, wrapped it in a Streamlit UI, and shipped it as a self-contained Docker image. <strong>This is the deployable unit</strong> that the next session (Kubernetes) will orchestrate at scale.
+        </div>
+
+        <div class="page-footer">
+          <button class="mark-done" type="button" data-mark-done>
+            <span class="md-icon"></span>
+            <span class="md-label">Mark this step as done</span>
+          </button>
+          <div class="pf-nav">
+            <button class="pf-btn" type="button" data-nav="prev">&larr; Prev</button>
+            <button class="pf-btn primary" type="button" data-nav="next" disabled>Finish &check;</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ============================================================
+     FLOATING BOTTOM-LEFT TOOLBAR (theme toggle + font slider)
+     ============================================================ -->
+<div class="bl-toolbar">
+  <button class="theme-toggle" id="themeToggle" type="button"
+          role="switch" aria-pressed="false"
+          aria-label="Toggle theme between light and dark"
+          title="Toggle dark / light theme">
+    <span class="tt-option light">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.2"/>
+        <line x1="12" y1="2" x2="12" y2="4"/>
+        <line x1="12" y1="20" x2="12" y2="22"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="2" y1="12" x2="4" y2="12"/>
+        <line x1="20" y1="12" x2="22" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      Light
+    </span>
+    <span class="tt-track" aria-hidden="true"><span class="tt-knob"></span></span>
+    <span class="tt-option dark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      Dark
+    </span>
+  </button>
+
+  <div class="font-control" title="Content font size">
+    <span class="fc-icon" aria-hidden="true">A</span>
+    <input type="range" id="fontScale" min="0.85" max="1.40" step="0.05" value="1" aria-label="Content font size">
+    <span class="fc-icon big" aria-hidden="true">A</span>
+    <span class="fc-val" id="fontScaleVal">100%</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     STICKY BOTTOM-RIGHT AUTHOR CREDIT
+     ============================================================ -->
+<div class="author-credit">
+  Prepared by <a href="https://sajjadahmed.com" target="_blank" rel="noopener">Sajjad Ahmed Niloy</a> for <strong>SICIP, BRAC University</strong>
+</div>
+
+<script>
+  /* ============================================================
+     DARK / LIGHT THEME TOGGLE
+     ============================================================ */
+  (function () {
+    const root   = document.documentElement;
+    const toggle = document.getElementById('themeToggle');
+    if (!toggle) return;
+    const KEY = 'sicip-theme';
+    const stored = (() => { try { return localStorage.getItem(KEY); } catch (_) { return null; } })();
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initial = stored || (prefersDark ? 'dark' : 'light');
+    function setTheme(mode) {
+      if (mode === 'dark') root.setAttribute('data-theme', 'dark');
+      else                 root.removeAttribute('data-theme');
+      try { localStorage.setItem(KEY, mode); } catch (_) {}
+      toggle.setAttribute('aria-pressed', mode === 'dark' ? 'true' : 'false');
+    }
+    setTheme(initial);
+    toggle.addEventListener('click', () => {
+      const isDark = root.getAttribute('data-theme') === 'dark';
+      setTheme(isDark ? 'light' : 'dark');
+    });
+  })();
+
+  /* ============================================================
+     PAGE / STEP STATE  (active page, done set, persisted)
+     ============================================================ */
+  const PAGES        = ['intro', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6'];
+  const TRACKABLE    = PAGES.filter(id => id !== 'intro');  // intro is not "done-able"
+  const KEY_PAGE     = 'mnist-gp-page';
+  const KEY_DONE     = 'mnist-gp-done';
+  const KEY_SBW      = 'mnist-gp-sidebar-w';
+  const KEY_SBCOL    = 'mnist-gp-sidebar-collapsed';
+  const KEY_FONT     = 'mnist-gp-font-scale';
+
+  const layout       = document.getElementById('layout');
+  const sidebar      = document.getElementById('sidebar');
+  const sbCollapse   = document.getElementById('sbCollapse');
+  const sbResize     = document.getElementById('sbResize');
+  const stepNav      = document.getElementById('stepNav');
+  const contentScroll= document.getElementById('contentScroll');
+
+  const headerTitle  = document.getElementById('headerTitle');
+  const headerTag    = document.getElementById('headerTag');
+  const headerProgF  = document.getElementById('headerProgressFill');
+  const headerProgT  = document.getElementById('headerProgressText');
+  const sidebarProgF = document.getElementById('sidebarProgressFill');
+  const sidebarProgT = document.getElementById('sidebarProgressText');
+
+  function lsGet(k, fallback) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+  function lsSet(k, v)         { try { localStorage.setItem(k, v); } catch (_) {} }
+
+  /* ----- done state ----- */
+  let done = new Set();
+  try {
+    const raw = lsGet(KEY_DONE);
+    if (raw) JSON.parse(raw).forEach(id => done.add(id));
+  } catch (_) { done = new Set(); }
+
+  function saveDone() {
+    lsSet(KEY_DONE, JSON.stringify(Array.from(done)));
+  }
+
+  function syncProgress() {
+    const total = TRACKABLE.length;
+    const count = TRACKABLE.filter(id => done.has(id)).length;
+    const pct = (count / total) * 100;
+    headerProgF.style.width  = pct + '%';
+    sidebarProgF.style.width = pct + '%';
+    headerProgT.textContent  = count + ' / ' + total;
+    sidebarProgT.textContent = count + ' / ' + total;
+  }
+
+  function syncDoneUI() {
+    /* sidebar checkmarks */
+    document.querySelectorAll('.step-btn').forEach(btn => {
+      const id = btn.dataset.target;
+      btn.classList.toggle('done', done.has(id));
+    });
+    /* mark-done button on each page */
+    document.querySelectorAll('.page').forEach(page => {
+      const btn = page.querySelector('[data-mark-done]');
+      if (!btn) return;
+      const isDone = done.has(page.id);
+      btn.classList.toggle('done', isDone);
+      const label = btn.querySelector('.md-label');
+      if (label) label.textContent = isDone ? 'Marked as done' : 'Mark this step as done';
+    });
+    syncProgress();
+  }
+
+  /* ----- active page ----- */
+  function activatePage(id, push = true) {
+    if (!PAGES.includes(id)) id = 'intro';
+
+    /* swap visible page */
+    document.querySelectorAll('.page').forEach(p => {
+      p.classList.toggle('active', p.id === id);
+    });
+
+    /* sidebar active state */
+    document.querySelectorAll('.step-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.target === id);
+    });
+
+    /* dynamic header title — fade out, swap, fade in */
+    const page = document.getElementById(id);
+    if (page) {
+      const title = page.dataset.title || 'MNIST Streamlit + Docker';
+      const tag   = page.dataset.tag   || 'Intro';
+      headerTitle.classList.add('title-fade');
+      setTimeout(() => {
+        headerTitle.innerHTML = title;
+        headerTag.textContent = tag;
+        headerTitle.classList.remove('title-fade');
+      }, 160);
+    }
+
+    /* reset content scroll to top */
+    if (contentScroll) contentScroll.scrollTop = 0;
+
+    /* prev/next button enable/disable */
+    syncNavButtons(id);
+
+    /* replay intro SVG animations whenever intro becomes active */
+    if (id === 'intro') replayIntroAnimations();
+
+    if (push) lsSet(KEY_PAGE, id);
+  }
+
+  /* Force CSS animations on the intro SVG to restart by cloning it.
+     Cloning resets the animation timeline; SMIL animateMotion also restarts. */
+  function replayIntroAnimations() {
+    const svg = document.querySelector('#intro .intro-svg');
+    if (!svg) return;
+    const fresh = svg.cloneNode(true);
+    svg.parentNode.replaceChild(fresh, svg);
+  }
+
+  function syncNavButtons(currentId) {
+    const idx = PAGES.indexOf(currentId);
+    document.querySelectorAll('.page').forEach(page => {
+      const prevBtn = page.querySelector('[data-nav="prev"]');
+      const nextBtn = page.querySelector('[data-nav="next"]');
+      if (prevBtn) prevBtn.disabled = idx <= 0;
+      if (nextBtn) nextBtn.disabled = idx >= PAGES.length - 1;
+    });
+  }
+
+  /* ----- click handlers ----- */
+  document.querySelectorAll('.step-btn').forEach(btn => {
+    btn.addEventListener('click', () => activatePage(btn.dataset.target));
+  });
+
+  document.querySelectorAll('[data-mark-done]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = btn.closest('.page');
+      if (!page) return;
+      const id = page.id;
+      if (done.has(id)) { done.delete(id); }
+      else              { done.add(id); }
+      saveDone();
+      syncDoneUI();
+    });
+  });
+
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const dir = btn.dataset.nav;
+      const page = btn.closest('.page');
+      if (!page) return;
+      const idx = PAGES.indexOf(page.id);
+      const next = dir === 'next' ? idx + 1 : idx - 1;
+      if (next < 0 || next >= PAGES.length) return;
+      /* auto-mark the page we're leaving as done if user clicks Next */
+      if (dir === 'next' && TRACKABLE.includes(page.id) && !done.has(page.id)) {
+        done.add(page.id);
+        saveDone();
+      }
+      activatePage(PAGES[next]);
+      syncDoneUI();
+    });
+  });
+
+  /* keyboard navigation: left / right arrows when not focused in an input */
+  document.addEventListener('keydown', (e) => {
+    if (e.target && (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable)) return;
+    const current = document.querySelector('.page.active');
+    if (!current) return;
+    const idx = PAGES.indexOf(current.id);
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+      e.preventDefault();
+      if (idx < PAGES.length - 1) activatePage(PAGES[idx + 1]);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      if (idx > 0) activatePage(PAGES[idx - 1]);
+    }
+  });
+
+  /* ============================================================
+     SIDEBAR COLLAPSE + RESIZE
+     ============================================================ */
+  /* collapse */
+  function setCollapsed(v) {
+    layout.classList.toggle('collapsed', v);
+    sbCollapse.setAttribute('aria-pressed', v ? 'true' : 'false');
+    lsSet(KEY_SBCOL, v ? '1' : '0');
+  }
+  sbCollapse.addEventListener('click', () => {
+    setCollapsed(!layout.classList.contains('collapsed'));
+  });
+  setCollapsed(lsGet(KEY_SBCOL) === '1');
+
+  /* resize */
+  const root = document.documentElement;
+  const storedW = parseInt(lsGet(KEY_SBW) || '', 10);
+  if (storedW && storedW >= 220 && storedW <= 520) {
+    root.style.setProperty('--sidebar-w', storedW + 'px');
+  }
+  let dragging = false;
+  sbResize.addEventListener('mousedown', (e) => {
+    if (layout.classList.contains('collapsed')) return;
+    dragging = true;
+    sbResize.classList.add('dragging');
+    document.body.classList.add('resizing');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const rect = sidebar.getBoundingClientRect();
+    const next = Math.min(520, Math.max(220, e.clientX - rect.left));
+    root.style.setProperty('--sidebar-w', next + 'px');
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    sbResize.classList.remove('dragging');
+    document.body.classList.remove('resizing');
+    const w = parseInt(getComputedStyle(root).getPropertyValue('--sidebar-w'), 10);
+    if (w) lsSet(KEY_SBW, String(w));
+  });
+  /* touch support */
+  sbResize.addEventListener('touchstart', (e) => {
+    if (layout.classList.contains('collapsed')) return;
+    dragging = true; sbResize.classList.add('dragging');
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    const rect = sidebar.getBoundingClientRect();
+    const next = Math.min(520, Math.max(220, t.clientX - rect.left));
+    root.style.setProperty('--sidebar-w', next + 'px');
+  }, { passive: true });
+  window.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false; sbResize.classList.remove('dragging');
+    const w = parseInt(getComputedStyle(root).getPropertyValue('--sidebar-w'), 10);
+    if (w) lsSet(KEY_SBW, String(w));
+  });
+
+  /* ============================================================
+     FONT-SIZE SLIDER
+     ============================================================ */
+  (function () {
+    const slider = document.getElementById('fontScale');
+    const valEl  = document.getElementById('fontScaleVal');
+    if (!slider) return;
+    const stored = parseFloat(lsGet(KEY_FONT) || '');
+    const initial = (stored && stored >= 0.85 && stored <= 1.40) ? stored : 1;
+    function apply(v) {
+      root.style.setProperty('--content-scale', String(v));
+      valEl.textContent = Math.round(v * 100) + '%';
+      slider.value = v;
+      lsSet(KEY_FONT, String(v));
+    }
+    apply(initial);
+    slider.addEventListener('input', (e) => apply(parseFloat(e.target.value)));
+  })();
+
+  /* ============================================================
+     INITIAL BOOT
+     ============================================================ */
+  syncDoneUI();
+  const initialPage = lsGet(KEY_PAGE) || 'intro';
+  activatePage(initialPage, false);
+</script>
+</body>
+</html>
