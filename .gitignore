@@ -1,0 +1,6 @@
+# ignore venv folder
+venv/
+# ignore __pycache__ folders
+__pycache__/
+# ignore .ipynb_checkpoints folders
+.ipynb_checkpoints/

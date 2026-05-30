@@ -1,12 +1,12 @@
 # ===== Web app =====
-streamlit==1.38.0
-streamlit-drawable-canvas==0.9.3
+streamlit
+streamlit-drawable-canvas
 
 # ===== ML runtime (matches the training notebook) =====
-tensorflow==2.20.0
-numpy==2.0.2
-pandas==2.2.2
-scikit-learn==1.6.1
+tensorflow
+numpy
+pandas
+scikit-learn
 
 # ===== Image preprocessing =====
-Pillow==10.4.0
+Pillow
